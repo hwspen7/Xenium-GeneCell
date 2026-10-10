@@ -1,0 +1,15 @@
+
+# Xenium-GeneCell
+# Cross-platform Conda environment
+# Windows / macOS / Linux
+
+name: cellmae
+
+channels:
+  - conda-forge
+
+dependencies:
+  - python=3.11
+  - pip
+  - setuptools>=69
+  - wheel

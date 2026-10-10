@@ -1,0 +1,97 @@
+# Xenium-GeneCell
+# Git Ignore Configuration
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+.eggs/
+build/
+dist/
+pip-wheel-metadata/
+
+# Conda and Virtual Environments
+.venv/
+venv/
+env/
+ENV/
+conda-env/
+.conda/
+.python-version
+
+# IDE and Editors
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+*~
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Testing and Linting
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+
+# Xenium and Single-Cell Datasets
+/data/
+*.h5
+*.h5ad
+*.h5mu
+*.loom
+*.zarr/
+*.mtx
+*.mtx.gz
+
+# Model Checkpoints and Weights
+/checkpoints/
+/weights/
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.onnx
+
+# Training Outputs and Experiment Logs
+/outputs/
+/runs/
+/logs/
+/results/
+events.out.tfevents.*
+lightning_logs/
+wandb/
+mlruns/
+
+# Temporary Files
+*.tmp
+*.temp
+*.bak
+*.log
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Environment Variables and Secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials.json
+secrets.json
+
+# Local Configuration
+config.local.yaml
+config.local.yml
+config.local.json

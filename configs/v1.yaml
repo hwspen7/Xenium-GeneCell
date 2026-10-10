@@ -1,0 +1,27 @@
+# INITIAL DESIGN CONFIG ONLY: model training is not yet implemented.
+experiment:
+  name: xenium_genecell_v1
+  seed: 42
+  device: auto  # auto | cuda | mps | cpu
+
+data:
+  n_genes: 300
+  # Select genes using training data only; save the exact ordered gene list.
+  train_fraction: 0.8
+  val_fraction: 0.1
+  test_fraction: 0.1
+
+model:
+  family: gene_aware_masked_autoencoder
+  embedding_dim: 128
+  hidden_dim: 512
+  mask_ratio: 0.20
+
+training:
+  batch_size: 512
+  max_epochs: 100
+  optimizer: adamw
+  learning_rate: 0.001
+  early_stopping_patience: 15
+
+# No real-world performance metrics are claimed by this config.

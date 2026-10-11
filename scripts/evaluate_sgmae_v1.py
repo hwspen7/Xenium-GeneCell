@@ -62,9 +62,12 @@ def main(argv=None):
     parser.add_argument("--sample", choices=("shaml", "shamr", "hour12r", "day2l"), default="shaml")
     parser.add_argument("--confirm-heldout", action="store_true")
     parser.add_argument("--output-dir", type=Path, default=None)
+    parser.add_argument("--scatter-size", type=int, default=6000, help="Deterministic visualization samples per checkpoint (0 disables)")
     parser.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto")
     args = parser.parse_args(argv)
 
+    if args.scatter_size < 0:
+        parser.error("--scatter-size must be nonnegative.")
     checkpoints = args.checkpoint
     labels = [label for label, _ in checkpoints]
     if len(set(labels)) != len(labels):
@@ -140,6 +143,7 @@ def main(argv=None):
 
     reports = {}
     per_gene_reports = {}
+    scatter_reports = {}
     shared_protocol = None
     shared_mask_hash = None
     shared_model_config = None
@@ -181,7 +185,11 @@ def main(argv=None):
             config=settings,
             loss_config=metadata["loss_config"],
             device=device,
+            scatter_sample_size=args.scatter_size,
         )
+        scatter_data = metrics.pop("plot_samples", None)
+        if scatter_data is not None:
+            scatter_reports[label] = scatter_data
         if shared_mask_hash is None:
             shared_mask_hash = metrics["mask_sha256"]
         elif shared_mask_hash != metrics["mask_sha256"]:
@@ -220,6 +228,10 @@ def main(argv=None):
         for key in ("auprc", "auroc", "f1_at_0_5"):
             print(f"  Presence {key}: {metrics['model']['presence'][key]} | baseline: {metrics['baseline']['presence'][key]}")
         print(f"  Positive log1p MAE: {metrics['model']['positive_intensity_log1p']['mae']} | baseline: {metrics['baseline']['positive_intensity_log1p']['mae']}")
+        print(f"  Positive macro Pearson: {metrics['model']['positive_intensity_log1p']['macro_gene_pearson']}")
+        print(f"  Positive macro Spearman: {metrics['model']['positive_intensity_log1p']['macro_gene_spearman']}")
+        print(f"  Full macro Pearson: {metrics['model']['full_reconstruction_log1p']['macro_gene_pearson']}")
+        print(f"  Full macro Spearman: {metrics['model']['full_reconstruction_log1p']['macro_gene_spearman']}")
         del model
         if device == "cuda":
             torch.cuda.empty_cache()
@@ -248,6 +260,11 @@ def main(argv=None):
         handle.write("\n")
     for label, rows in per_gene_reports.items():
         _write_csv(output_dir / f"{label}_per_gene.csv", rows)
+    for label, data in scatter_reports.items():
+        np.savez_compressed(
+            output_dir / f"{label}_scatter_samples.npz",
+            **{field: np.asarray(values) for field, values in data.items()},
+        )
     print(f"\nReports saved: {output_dir}")
     print("No training files, checkpoints, or frozen split manifests were modified.")
     return report

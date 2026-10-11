@@ -13,6 +13,7 @@ from pathlib import Path
 
 import numpy as np
 import torch
+from scipy.stats import rankdata
 from sklearn.metrics import (
     average_precision_score,
     f1_score,
@@ -28,7 +29,7 @@ from src.models.gene_aware_mae import GeneAwareMAE
 from src.training.losses import MaskedReconstructionLoss
 
 
-EVALUATION_SCHEMA_VERSION = 1
+EVALUATION_SCHEMA_VERSION = 2
 
 
 def sha256_file(path: str | Path) -> str:
@@ -182,6 +183,93 @@ def _mean_or_none(numbers: list[float]) -> float | None:
     return float(np.mean(numbers)) if numbers else None
 
 
+def _safe_pearson(true: np.ndarray, predicted: np.ndarray) -> float | None:
+    """Return undefined for fewer than three observations or constant arrays."""
+    x = np.asarray(true, dtype=np.float64)
+    y = np.asarray(predicted, dtype=np.float64)
+    if x.size < 3 or y.size != x.size:
+        return None
+    if not np.isfinite(x).all() or not np.isfinite(y).all():
+        raise ValueError("Nonfinite values in correlation inputs.")
+    x_center = x - x.mean()
+    y_center = y - y.mean()
+    sx = float(np.dot(x_center, x_center))
+    sy = float(np.dot(y_center, y_center))
+    if sx <= 1e-24 or sy <= 1e-24:
+        return None
+    coefficient = float(np.dot(x_center, y_center) / math.sqrt(sx * sy))
+    return max(-1.0, min(1.0, coefficient))
+
+
+def _safe_spearman(true: np.ndarray, predicted: np.ndarray) -> float | None:
+    """Pearson correlation of average ranks, with explicit tie handling."""
+    x = np.asarray(true, dtype=np.float64)
+    y = np.asarray(predicted, dtype=np.float64)
+    if x.size < 3 or y.size != x.size:
+        return None
+    if np.ptp(x) == 0 or np.ptp(y) == 0:
+        return None
+    return _safe_pearson(rankdata(x, method="average"), rankdata(y, method="average"))
+
+
+def _correlation_pair(true: np.ndarray, predicted: np.ndarray) -> dict:
+    return {
+        "pearson": _safe_pearson(true, predicted),
+        "spearman": _safe_spearman(true, predicted),
+    }
+
+
+def _sampled_pooled_correlation(
+    true: np.ndarray,
+    predicted: np.ndarray,
+    *,
+    max_spearman_targets: int = 100000,
+    seed: int = 20261010,
+) -> dict:
+    """Use exact pooled Pearson and a bounded, deterministic pooled Spearman."""
+    x = np.asarray(true, dtype=np.float64)
+    y = np.asarray(predicted, dtype=np.float64)
+    n = x.size
+    if n > max_spearman_targets:
+        sampled = np.random.default_rng(seed).choice(n, max_spearman_targets, replace=False)
+        x_rank = x[sampled]
+        y_rank = y[sampled]
+    else:
+        x_rank = x
+        y_rank = y
+    return {
+        "pearson": _safe_pearson(x, y),
+        "spearman": _safe_spearman(x_rank, y_rank),
+        "spearman_sampled_targets": int(x_rank.size),
+        "pearson_targets": int(n),
+        "spearman_exact": bool(n <= max_spearman_targets),
+    }
+
+
+def _regression_error(true: np.ndarray, predicted: np.ndarray) -> dict:
+    if true.size == 0:
+        return {"mae": None, "rmse": None}
+    residual = np.asarray(predicted, dtype=np.float64) - np.asarray(true, dtype=np.float64)
+    return {
+        "mae": float(np.mean(np.abs(residual))),
+        "rmse": float(np.sqrt(np.mean(np.square(residual)))),
+    }
+
+
+def _macro_summary(per_gene: list[dict], prefix: str) -> dict:
+    values = {
+        metric: [float(row[f"{prefix}_{metric}"]) for row in per_gene
+                 if row[f"{prefix}_{metric}"] is not None]
+        for metric in ("pearson", "spearman")
+    }
+    return {
+        "macro_gene_pearson": _mean_or_none(values["pearson"]),
+        "macro_gene_spearman": _mean_or_none(values["spearman"]),
+        "genes_with_pearson": len(values["pearson"]),
+        "genes_with_spearman": len(values["spearman"]),
+    }
+
+
 def _huber_sum(prediction: np.ndarray, target: np.ndarray, beta: float) -> float:
     error = np.abs(prediction - target)
     return float(np.where(error < beta, 0.5 * error * error / beta, error - 0.5 * beta).sum())
@@ -242,6 +330,14 @@ def summarize_predictions(
     huber_model = _huber_sum(pos_predictions, targets, huber_beta) / positive_count if positive_count else 0.0
     huber_baseline = _huber_sum(pos_baseline, targets, huber_beta) / positive_count if positive_count else 0.0
 
+    all_targets_log = np.log1p(raw)
+    # This is an explicitly defined log-scale reconstruction heuristic, not E[raw count].
+    full_model_log = probabilities * predicted_log.astype(np.float64)
+    full_baseline_log = base_prob * base_log.astype(np.float64)
+    positive_pooled_model = _sampled_pooled_correlation(targets, pos_predictions)
+    positive_pooled_baseline = _sampled_pooled_correlation(targets, pos_baseline)
+    full_pooled_model = _sampled_pooled_correlation(all_targets_log, full_model_log)
+    full_pooled_baseline = _sampled_pooled_correlation(all_targets_log, full_baseline_log)
     model_cls = _classification_metrics(labels, probabilities)
     baseline_cls = _classification_metrics(labels, base_prob)
     rows = []
@@ -274,6 +370,10 @@ def summarize_predictions(
             macro_baseline_auc.append(base_auc)
         positive_group = group[gene_labels]
         gene_targets = np.log1p(raw[positive_group])
+        positive_model_corr = _correlation_pair(gene_targets, predicted_log[positive_group])
+        positive_baseline_corr = _correlation_pair(gene_targets, base_log[positive_group])
+        full_model_corr = _correlation_pair(all_targets_log[group], full_model_log[group])
+        full_baseline_corr = _correlation_pair(all_targets_log[group], full_baseline_log[group])
         rows.append({
             "gene_id": int(gene),
             "masked_targets": int(size),
@@ -288,6 +388,16 @@ def summarize_predictions(
             "baseline_f1_at_0_5": float(f1_score(gene_labels, gene_baseline >= 0.5, zero_division=0)),
             "model_positive_mae_log1p": float(np.mean(np.abs(predicted_log[positive_group] - gene_targets))) if gene_targets.size else None,
             "baseline_positive_mae_log1p": float(np.mean(np.abs(base_log[positive_group] - gene_targets))) if gene_targets.size else None,
+            "model_positive_pearson": positive_model_corr["pearson"],
+            "model_positive_spearman": positive_model_corr["spearman"],
+            "baseline_positive_pearson": positive_baseline_corr["pearson"],
+            "baseline_positive_spearman": positive_baseline_corr["spearman"],
+            "model_full_pearson": full_model_corr["pearson"],
+            "model_full_spearman": full_model_corr["spearman"],
+            "baseline_full_pearson": full_baseline_corr["pearson"],
+            "baseline_full_spearman": full_baseline_corr["spearman"],
+            "model_full_mae_log1p": _regression_error(all_targets_log[group], full_model_log[group])["mae"],
+            "baseline_full_mae_log1p": _regression_error(all_targets_log[group], full_baseline_log[group])["mae"],
         })
     return {
         "masked_targets": int(labels.size),
@@ -303,6 +413,14 @@ def summarize_predictions(
             },
             "positive_intensity_log1p": {
                 "mae": mae, "rmse": rmse, "huber": huber_model,
+                **positive_pooled_model,
+                **_macro_summary(rows, "model_positive"),
+            },
+            "full_reconstruction_log1p": {
+                **_regression_error(all_targets_log, full_model_log),
+                **full_pooled_model,
+                **_macro_summary(rows, "model_full"),
+                "prediction_rule": "presence_probability_times_positive_log1p_intensity",
             },
         },
         "baseline": {
@@ -316,6 +434,14 @@ def summarize_predictions(
             },
             "positive_intensity_log1p": {
                 "mae": base_mae, "rmse": base_rmse, "huber": huber_baseline,
+                **positive_pooled_baseline,
+                **_macro_summary(rows, "baseline_positive"),
+            },
+            "full_reconstruction_log1p": {
+                **_regression_error(all_targets_log, full_baseline_log),
+                **full_pooled_baseline,
+                **_macro_summary(rows, "baseline_full"),
+                "prediction_rule": "presence_probability_times_positive_log1p_intensity",
             },
         },
     }, rows
@@ -331,6 +457,7 @@ def evaluate_frozen_reconstruction(
     loss_config: dict,
     device: str | torch.device = "cpu",
     show_progress: bool = True,
+    scatter_sample_size: int = 0,
 ) -> tuple[dict, list[dict]]:
     """Evaluate a single frozen model on a fixed, measured-only mask protocol.
 
@@ -420,6 +547,24 @@ def evaluate_frozen_reconstruction(
         raise ValueError("Evaluation produced no masked measured targets.")
     packed = {name: np.concatenate(values) for name, values in chunks.items()}
     metrics, per_gene = summarize_predictions(**packed, huber_beta=criterion.huber_beta)
+    if type(scatter_sample_size) is not int or scatter_sample_size < 0:
+        raise ValueError("scatter_sample_size must be a nonnegative integer.")
+    if scatter_sample_size > 0:
+        # Draw a reproducible visualization subset without storing millions of points.
+        sample_rng = np.random.default_rng(271828)
+        sample_indices = sample_rng.choice(
+            packed["counts"].size,
+            min(scatter_sample_size, packed["counts"].size),
+            replace=False,
+        )
+        sampled_counts = packed["counts"][sample_indices].astype(np.float64)
+        sampled_probability = np.exp(-np.logaddexp(0.0, -packed["logits"][sample_indices].astype(np.float64)))
+        metrics["plot_samples"] = {
+            "target_log1p": np.log1p(sampled_counts).tolist(),
+            "predicted_full_log1p": (sampled_probability * packed["intensity"][sample_indices]).tolist(),
+            "predicted_positive_log1p": packed["intensity"][sample_indices].astype(np.float64).tolist(),
+            "is_positive": (sampled_counts > 0).tolist(),
+        }
     if total_masked != metrics["masked_targets"] or total_positive != metrics["positive_targets"]:
         raise AssertionError("Loss totals and prediction totals disagree.")
     p_mean = p_sum / total_masked

@@ -65,6 +65,20 @@ def _metric_values(result: dict, method: str) -> dict:
         "presence_auroc": values["presence"]["auroc"],
         "presence_f1": values["presence"]["f1_at_0_5"],
         "positive_mae": values["positive_intensity_log1p"]["mae"],
+        "positive_pearson": values["positive_intensity_log1p"]["pearson"],
+        "positive_spearman": values["positive_intensity_log1p"]["spearman"],
+        "positive_macro_pearson": values["positive_intensity_log1p"]["macro_gene_pearson"],
+        "positive_macro_spearman": values["positive_intensity_log1p"]["macro_gene_spearman"],
+        "positive_genes_with_pearson": values["positive_intensity_log1p"]["genes_with_pearson"],
+        "positive_genes_with_spearman": values["positive_intensity_log1p"]["genes_with_spearman"],
+        "full_mae": values["full_reconstruction_log1p"]["mae"],
+        "full_rmse": values["full_reconstruction_log1p"]["rmse"],
+        "full_pearson": values["full_reconstruction_log1p"]["pearson"],
+        "full_spearman": values["full_reconstruction_log1p"]["spearman"],
+        "full_macro_pearson": values["full_reconstruction_log1p"]["macro_gene_pearson"],
+        "full_macro_spearman": values["full_reconstruction_log1p"]["macro_gene_spearman"],
+        "full_genes_with_pearson": values["full_reconstruction_log1p"]["genes_with_pearson"],
+        "full_genes_with_spearman": values["full_reconstruction_log1p"]["genes_with_spearman"],
         "presence_macro_gene_auprc": values["presence"]["macro_gene_auprc"],
         "presence_macro_gene_auroc": values["presence"]["macro_gene_auroc"],
     }
@@ -198,6 +212,122 @@ def _plot(rows: list[dict], labels: list[str], destination: Path) -> None:
     plt.close(fig)
 
 
+def _plot_correlations(rows: list[dict], labels: list[str], destination: Path) -> None:
+    """Plot matched four-slice correlation and full-reconstruction metrics."""
+    panels = (
+        ("positive_macro_pearson", "Positive intensity | Macro Pearson", True),
+        ("positive_macro_spearman", "Positive intensity | Macro Spearman", True),
+        ("full_macro_pearson", "Full reconstruction | Macro Pearson", True),
+        ("full_macro_spearman", "Full reconstruction | Macro Spearman", True),
+        ("full_mae", "Full reconstruction | log1p MAE", False),
+        ("full_pearson", "Full reconstruction | Pooled Pearson", True),
+    )
+    methods = ["Gene-frequency baseline", *labels]
+    lookup = {(row["sample"], row["method"]): row for row in rows}
+    samples = [entry[0] for entry in SAMPLES]
+    names = [entry[1] for entry in SAMPLES]
+    x = np.arange(len(samples), dtype=float)
+    width = 0.8 / len(methods)
+    offsets = (np.arange(len(methods)) - (len(methods) - 1) / 2.0) * width
+    shades = ["#dddddd", "#858585", "#222222", "#555555"]
+    hatch_patterns = ["//", "", "..", "xx"]
+    fig, axes = plt.subplots(2, 3, figsize=(15.5, 9.4), constrained_layout=True)
+    for ax, (metric, title, _) in zip(axes.flat, panels):
+        for i, method in enumerate(methods):
+            values = [lookup[(key, method)][metric] for key in samples]
+            heights = [np.nan if v is None else float(v) for v in values]
+            ax.bar(x + offsets[i], heights, width=width * 0.96,
+                   label=method, edgecolor="black", linewidth=0.5,
+                   color=shades[i], hatch=hatch_patterns[i])
+        ax.set_title(title, fontsize=11)
+        ax.set_xticks(x, names)
+        ax.axvline(1.5, linestyle="--", color="#777777", linewidth=0.8)
+        ax.axhline(0, color="black", linewidth=0.65)
+        ax.grid(axis="y", linestyle=":", alpha=0.3)
+        ax.set_axisbelow(True)
+        if "pearson" in metric or "spearman" in metric:
+            ax.set_ylim(-1.02, 1.02)
+        else:
+            ax.set_ylim(bottom=0)
+    handles, descriptions = axes.flat[0].get_legend_handles_labels()
+    fig.legend(handles, descriptions, loc="upper center", ncol=len(methods),
+               bbox_to_anchor=(0.5, 1.035), frameon=False)
+    fig.suptitle("SG-MAE | Cross-condition expression correlations", y=1.072,
+                 fontsize=15, fontweight="bold")
+    fig.text(0.5, -0.025,
+             "Macro correlations average only genes with defined coefficients. "
+             "Full log1p prediction = P(positive) × predicted positive log1p intensity. "
+             "Pooled correlation can reflect between-gene differences.",
+             ha="center", va="top", fontsize=9)
+    fig.savefig(destination, dpi=220, bbox_inches="tight")
+    plt.close(fig)
+
+
+def _plot_gene_distribution(output_dir: Path, label: str, destination: Path) -> None:
+    """Compare gene-level correlations between four slices for one frozen model."""
+    fields = (
+        ("model_positive_pearson", "Positive intensity | per-gene Pearson"),
+        ("model_positive_spearman", "Positive intensity | per-gene Spearman"),
+        ("model_full_pearson", "Full reconstruction | per-gene Pearson"),
+        ("model_full_spearman", "Full reconstruction | per-gene Spearman"),
+    )
+    data = {}
+    for key, _, _, _ in SAMPLES:
+        csv_path = output_dir / key / f"{label}_per_gene.csv"
+        with csv_path.open("r", encoding="utf-8", newline="") as handle:
+            data[key] = list(csv.DictReader(handle))
+    fig, axes = plt.subplots(2, 2, figsize=(12.3, 8.5), constrained_layout=True)
+    for ax, (field, title) in zip(axes.flat, fields):
+        distributions = []
+        for key, _, _, _ in SAMPLES:
+            values = [float(row[field]) for row in data[key] if row[field] not in ("", "None")]
+            distributions.append(values)
+        ax.boxplot([v if v else [np.nan] for v in distributions],
+                   tick_labels=[item[1] for item in SAMPLES],
+                   patch_artist=False, showfliers=False, widths=0.55)
+        ax.set_ylim(-1.02, 1.02)
+        ax.axhline(0, color="#777777", linewidth=0.7, linestyle=":")
+        ax.axvline(2.5, color="#777777", linewidth=0.8, linestyle="--")
+        ax.grid(axis="y", alpha=0.25, linestyle=":")
+        ax.set_title(title, fontsize=11)
+    fig.suptitle(f"SG-MAE | Per-gene correlation distributions | {label}",
+                 fontsize=14, fontweight="bold")
+    fig.savefig(destination, dpi=220, bbox_inches="tight")
+    plt.close(fig)
+
+
+def _plot_scatter(output_dir: Path, label: str, destination: Path, *, positive_only: bool) -> bool:
+    """Plot fixed-seed subsampled true/predicted expression, with no made-up values."""
+    keys = "predicted_positive_log1p" if positive_only else "predicted_full_log1p"
+    fig, axes = plt.subplots(2, 2, figsize=(11.7, 9.8), constrained_layout=True)
+    found = False
+    for ax, (sample, name, _, _) in zip(axes.flat, SAMPLES):
+        path = output_dir / sample / f"{label}_scatter_samples.npz"
+        if not path.exists():
+            plt.close(fig)
+            return False
+        with np.load(path, allow_pickle=False) as data:
+            include = data["is_positive"] if positive_only else np.ones_like(data["is_positive"], dtype=bool)
+            truth = data["target_log1p"][include]
+            predicted = data[keys][include]
+        if truth.size:
+            found = True
+            ax.scatter(truth, predicted, s=7, alpha=0.15, color="black", rasterized=True)
+            max_value = max(float(truth.max()), float(predicted.max()), 0.1)
+            ax.plot([0, max_value], [0, max_value], linestyle="--", color="#777777", linewidth=1)
+            ax.set_xlim(0, max_value * 1.02)
+            ax.set_ylim(0, max_value * 1.02)
+        ax.set_title(f"{name} | n={truth.size:,}", fontsize=11)
+        ax.set_xlabel("True log1p count")
+        ax.set_ylabel("Predicted log1p expression")
+        ax.grid(alpha=0.18)
+    fig.suptitle(f"SG-MAE | {'Positive' if positive_only else 'Full'} expression reconstruction | {label}",
+                 fontsize=14, fontweight="bold")
+    fig.savefig(destination, dpi=200, bbox_inches="tight")
+    plt.close(fig)
+    return found
+
+
 def main(argv=None):
     root = Path(__file__).resolve().parents[1]
     parser = argparse.ArgumentParser(
@@ -210,7 +340,10 @@ def main(argv=None):
     parser.add_argument("--output-dir", type=Path, default=root / "runs" / "sgmae_v1_four_slices")
     parser.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto")
     parser.add_argument("--confirm-external", action="store_true")
+    parser.add_argument("--scatter-size", type=int, default=6000)
     args = parser.parse_args(argv)
+    if args.scatter_size < 0:
+        parser.error("--scatter-size must be nonnegative.")
     labels = [label for label, _ in args.checkpoint]
     if len(set(labels)) != len(labels):
         parser.error("Checkpoint labels must be unique.")
@@ -227,6 +360,7 @@ def main(argv=None):
         "--vocabulary", str(args.vocabulary),
         "--split", str(args.split),
         "--device", args.device,
+        "--scatter-size", str(args.scatter_size),
     ]
     for label, path in args.checkpoint:
         common.extend(("--checkpoint", f"{label}={path}"))
@@ -247,6 +381,18 @@ def main(argv=None):
     _write_csv(args.output_dir / "comparison.csv", rows)
     figure_path = args.output_dir / "four_slice_comparison.png"
     _plot(rows, labels, figure_path)
+    correlations_path = args.output_dir / "four_slice_correlations.png"
+    _plot_correlations(rows, labels, correlations_path)
+    for label in labels:
+        _plot_gene_distribution(
+            args.output_dir, label,
+            args.output_dir / f"{label}_per_gene_correlations.png",
+        )
+        if args.scatter_size > 0:
+            _plot_scatter(args.output_dir, label,
+                          args.output_dir / f"{label}_positive_scatter.png", positive_only=True)
+            _plot_scatter(args.output_dir, label,
+                          args.output_dir / f"{label}_full_scatter.png", positive_only=False)
     manifest = {
         "samples": [item[0] for item in SAMPLES],
         "checkpoints": labels,
@@ -260,6 +406,7 @@ def main(argv=None):
         stream.write("\n")
     print(f"\nCombined CSV: {args.output_dir / 'comparison.csv'}")
     print(f"Combined figure: {figure_path}")
+    print(f"Correlation figure: {correlations_path}")
     print("Frozen checkpoints and splits remain unchanged.")
     return rows
 

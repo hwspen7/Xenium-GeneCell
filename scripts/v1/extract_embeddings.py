@@ -1,7 +1,7 @@
 """Extract frozen SG-MAE cell embeddings for four kidney Xenium slices.
 
 From the project root:
-  python -m scripts.extract_cell_embeddings --confirm-external
+  python -m scripts.v1.extract_embeddings --confirm-external
 """
 
 from __future__ import annotations
@@ -31,13 +31,13 @@ SAMPLES = (("shaml", "ShamL"), ("shamr", "ShamR"), ("hour12r", "Hour12R"), ("day
 
 
 def main(argv=None):
-    root = Path(__file__).resolve().parents[1]
+    root = Path(__file__).resolve().parents[2]
     parser = argparse.ArgumentParser(description="SG-MAE V1.1 frozen 128D embeddings")
-    parser.add_argument("--checkpoint", type=Path, default=root / "runs/sgmae_v1_scheduler/best.pt")
+    parser.add_argument("--checkpoint", type=Path, default=root / "runs/v1/training/scheduler/best.pt")
     parser.add_argument("--data-root", type=Path, default=root / "data")
     parser.add_argument("--vocabulary", type=Path, default=root / "configs/gene_vocabulary.json")
     parser.add_argument("--split", type=Path, default=root / "configs/splits/shaml_spatial_v1.json.gz")
-    parser.add_argument("--output-dir", type=Path, default=root / "runs/sgmae_cell_embeddings")
+    parser.add_argument("--output-dir", type=Path, default=root / "runs/v1/representations/embeddings_new")
     parser.add_argument("--batch-size", type=int, default=256)
     parser.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto")
     parser.add_argument("--confirm-external", action="store_true")

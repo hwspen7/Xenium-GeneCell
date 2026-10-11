@@ -5,7 +5,7 @@ ShamR, Hour12R and Day2L are external evaluation targets, never training
 inputs. Checkpoints, masks, baselines and model selection stay unchanged.
 
 Run from the project root:
-    python -m scripts.evaluate_sgmae_conditions \
+    python -m scripts.v1.evaluate_conditions \
         --checkpoint baseline=runs/sgmae_v1_baseline/best.pt \
         --checkpoint scheduler=runs/sgmae_v1_scheduler/best.pt \
         --confirm-external \
@@ -26,7 +26,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from scripts.evaluate_sgmae_v1 import main as evaluate_one_sample
+from scripts.v1.evaluate import main as evaluate_one_sample
 
 
 SAMPLES = (
@@ -329,7 +329,7 @@ def _plot_scatter(output_dir: Path, label: str, destination: Path, *, positive_o
 
 
 def main(argv=None):
-    root = Path(__file__).resolve().parents[1]
+    root = Path(__file__).resolve().parents[2]
     parser = argparse.ArgumentParser(
         description="Four-slice, frozen SG-MAE V1 evaluation and comparison figure"
     )

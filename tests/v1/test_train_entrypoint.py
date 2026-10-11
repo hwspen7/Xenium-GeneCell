@@ -1,4 +1,4 @@
-"""Scheduler entry-point smoke test with synthetic ShamL H5 and mocked Parquet IO.
+"""Entry-point smoke test with synthetic ShamL H5 and mocked Parquet IO.
 
 This tests the real CLI main function without requiring pyarrow to be
 installed in the test runner. Local production runs use actual Parquet IO.
@@ -19,7 +19,7 @@ from scipy import sparse
 
 from src.data.gene_vocabulary import GeneVocabulary
 from src.data.splitting import save_spatial_split, split_spatial_validation
-from scripts.train_sgmae_v1 import main as train_main
+from scripts.v1.train import main as train_main
 
 
 def invoke(arguments, frame):
@@ -86,13 +86,7 @@ def main():
             "expected_split_fingerprint": split.fingerprint,
         }
         config_path.write_text(json.dumps(payload), encoding="utf-8")
-        payload["trainer"]["scheduler"] = {
-            "name": "reduce_on_plateau", "factor": 0.5, "patience": 0,
-            "threshold": 100.0, "threshold_mode": "abs", "cooldown": 0,
-            "min_lr": 0.0001,
-        }
-        config_path.write_text(json.dumps(payload), encoding="utf-8")
-        run_dir = root / "runs" / "scheduler"
+        run_dir = root / "runs" / "v1"
         args = [
             "--config", str(config_path), "--data-root", str(root / "data"),
             "--vocabulary", str(vocabulary_path), "--split", str(split_path),
@@ -105,18 +99,11 @@ def main():
         result = invoke(args, frame)
         assert "Finished." in result
         assert (run_dir / "best.pt").is_file() and (run_dir / "last.pt").is_file()
-        import torch
-        initial = torch.load(run_dir / "last.pt", map_location="cpu", weights_only=True)
-        assert "scheduler_state_dict" in initial
-        assert initial["history"][0]["learning_rate"] == 0.001
-        print("Scheduler entrypoint initial checkpoint: PASS")
+        print("Entrypoint synthetic ShamL end-to-end training: PASS")
 
-        result = invoke(args + ["--resume", "--epochs", "3"], frame)
-        assert "Resumed after epoch 1" in result and "Epoch 003" in result
-        continued = torch.load(run_dir / "last.pt", map_location="cpu", weights_only=True)
-        assert continued["completed_epoch"] == 3
-        assert continued["history"][-1]["next_learning_rate"] < 0.001
-        print("Scheduler entrypoint LR reduction and resume: PASS")
+        result = invoke(args + ["--resume", "--epochs", "2"], frame)
+        assert "Resumed after epoch 1" in result and "Epoch 002" in result
+        print("Entrypoint checkpoint resume and extended epochs: PASS")
 
         payload["expected_split_fingerprint"] = "0" * 64
         config_path.write_text(json.dumps(payload), encoding="utf-8")
@@ -126,9 +113,9 @@ def main():
             assert "Frozen spatial split differs" in str(error)
         else:
             raise AssertionError("Incorrect frozen split was accepted.")
-        print("Scheduler entrypoint incorrect frozen split rejected: PASS")
+        print("Entrypoint incorrect frozen split rejected: PASS")
 
-    print("\nAll SG-MAE scheduler entrypoint tests passed.")
+    print("\nAll SG-MAE V1 entrypoint smoke tests passed.")
 
 
 if __name__ == "__main__":

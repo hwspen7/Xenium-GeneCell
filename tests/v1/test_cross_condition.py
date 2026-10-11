@@ -13,9 +13,9 @@ import numpy as np
 import pandas as pd
 import torch
 
-from scripts.evaluate_sgmae_conditions import main as run_four_slices
-from scripts.evaluate_sgmae_v1 import main as run_one_slice
-from scripts.test_evaluation_entrypoint import write_fake_xenium
+from scripts.v1.evaluate_conditions import main as run_four_slices
+from scripts.v1.evaluate import main as run_one_slice
+from tests.v1.test_evaluation_entrypoint import write_fake_xenium
 from src.data.gene_vocabulary import GeneVocabulary
 from src.data.splitting import save_spatial_split, split_spatial_validation
 from src.dataset import load_sgmae_sample

@@ -23,7 +23,7 @@ from src.evaluation.cell_embeddings import (
     verify_gene_panel,
 )
 from src.models.gene_aware_mae import GeneAwareMAE
-from scripts.plot_cell_embeddings import main as plot_main, select_balanced_sample
+from scripts.v1.plot_embeddings import main as plot_main, select_balanced_sample
 
 
 class TinyDataset:

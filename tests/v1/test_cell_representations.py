@@ -13,7 +13,7 @@ import pandas as pd
 import torch
 from scipy import sparse
 
-from scripts.evaluate_cell_representations import _choose_rows, main
+from scripts.v1.evaluate_representations import _choose_rows, main
 from src.evaluation.representation_diagnostics import (
     aligned_gene_columns,
     embedding_diagnostics,
@@ -149,12 +149,12 @@ def check_full_synthetic_pipeline():
             return path.parent.name
         arguments = ["--input-dir", str(input_dir), "--data-root", str(root),
                      "--output-dir", str(out_dir), "--per-sample", "8", "--skip-umap"]
-        with patch("scripts.evaluate_cell_representations._read_data", return_value=(provenance, data)), \
-             patch("scripts.evaluate_cell_representations.GeneVocabulary.load", return_value=fake_vocab), \
-             patch("scripts.evaluate_cell_representations.find_xenium_sample_file", side_effect=locator), \
-             patch("scripts.evaluate_cell_representations.load_sgmae_sample", side_effect=loader), \
-             patch("scripts.evaluate_cell_representations.sha256_file", side_effect=digest), \
-             patch("scripts.evaluate_cell_representations.load_spatial_split", return_value=fake_split):
+        with patch("scripts.v1.evaluate_representations._read_data", return_value=(provenance, data)), \
+             patch("scripts.v1.evaluate_representations.GeneVocabulary.load", return_value=fake_vocab), \
+             patch("scripts.v1.evaluate_representations.find_xenium_sample_file", side_effect=locator), \
+             patch("scripts.v1.evaluate_representations.load_sgmae_sample", side_effect=loader), \
+             patch("scripts.v1.evaluate_representations.sha256_file", side_effect=digest), \
+             patch("scripts.v1.evaluate_representations.load_spatial_split", return_value=fake_split):
             result = main(arguments)
         assert result["total_selected"] == 32
         assert result["expression_pca_components"] == 6

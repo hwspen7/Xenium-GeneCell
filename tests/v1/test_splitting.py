@@ -171,7 +171,7 @@ def test_binary_cell_ids():
 
 def test_real_shaml():
     """Read only ShamL H5 barcodes and cells.parquet; never write official files."""
-    root = Path(__file__).resolve().parents[1]
+    root = Path(__file__).resolve().parents[2]
     data_root = root / "data"
     if not data_root.is_dir():
         print("Real ShamL spatial metadata: SKIP (no data directory)")

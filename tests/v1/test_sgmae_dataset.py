@@ -182,7 +182,7 @@ def _test_synthetic():
 
 def _test_real_if_available():
     """Check real ShamL/ShamR, without creating/updating the project vocabulary."""
-    root = Path(__file__).resolve().parents[1]
+    root = Path(__file__).resolve().parents[2]
     data_root = root / "data"
     try:
         train_path = find_xenium_sample_file(data_root, "ShamL")

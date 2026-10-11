@@ -1,6 +1,6 @@
 """Synthetic end-to-end CLI smoke tests; no real Xenium holdout is read.
 
-Run from the project root: python -m scripts.test_evaluation_entrypoint
+Run from the project root: python -m tests.v1.test_evaluation_entrypoint
 """
 
 import json
@@ -19,7 +19,7 @@ from src.data.splitting import save_spatial_split, split_spatial_validation
 from src.dataset import load_sgmae_sample
 from src.evaluation.evaluate_sgmae_v1 import evaluate_frozen_reconstruction, fit_train_only_baseline, sha256_file
 from src.models.gene_aware_mae import GeneAwareMAE
-from scripts.evaluate_sgmae_v1 import main as run_cli
+from scripts.v1.evaluate import main as run_cli
 
 
 def write_fake_xenium(path, counts, genes):

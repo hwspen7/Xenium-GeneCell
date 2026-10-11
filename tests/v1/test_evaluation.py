@@ -1,6 +1,6 @@
 """Regression tests for read-only SG-MAE V1.0 evaluation.
 
-Run from the project root: python -m scripts.test_evaluation
+Run from the project root: python -m tests.v1.test_evaluation
 Synthetic data only. Never opens the project's real ShamR dataset.
 """
 
@@ -196,7 +196,6 @@ def test_frozen_mask_and_loss():
     )
     assert abs(stats_a["reconstruction_loss"]["total"] - reconstructed) < 1e-6
     print("Fixed validation masks and exact loss aggregation: PASS")
-    return model, cfg, loss_cfg
 
 
 def test_trainer_validation_equivalence():

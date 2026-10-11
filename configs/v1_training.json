@@ -1,0 +1,28 @@
+{
+  "model": {
+    "token_dim": 128,
+    "cell_dim": 128,
+    "num_latents": 8,
+    "num_heads": 4,
+    "dropout": 0.1
+  },
+  "loss": {
+    "lambda_presence": 1.0,
+    "lambda_intensity": 1.0,
+    "huber_beta": 1.0
+  },
+  "trainer": {
+    "max_epochs": 100,
+    "batch_size": 64,
+    "learning_rate": 0.0003,
+    "weight_decay": 0.01,
+    "mask_ratio": 0.2,
+    "grad_clip_norm": 1.0,
+    "patience": 15,
+    "min_delta": 0.0,
+    "seed": 42,
+    "validation_mask_seed": 314159
+  },
+  "expected_vocabulary_fingerprint": "60238dcef9951ca09f5818a8394326890d0b940f8f8645d1033ae717db19879f",
+  "expected_split_fingerprint": "880e03d35ce2801ba756c9d31c7e23cdc6e8af28f44130c681b2642880e59901"
+}

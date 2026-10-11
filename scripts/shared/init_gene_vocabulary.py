@@ -7,7 +7,7 @@ from src.dataset import find_xenium_sample_file, initialize_sham_vocabulary
 
 
 def main():
-    root = Path(__file__).resolve().parents[1]
+    root = Path(__file__).resolve().parents[2]
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data-root", type=Path, default=root / "data")
     parser.add_argument("--train-sample", default="ShamL")

@@ -1,6 +1,6 @@
 """Synthetic plot regression tests. Does not open Xenium data or checkpoints.
 
-Run from project root: python -m scripts.test_correlation_plots
+Run from project root: python -m tests.v1.test_correlation_plots
 """
 
 import csv
@@ -9,7 +9,7 @@ from tempfile import TemporaryDirectory
 
 import numpy as np
 
-from scripts.evaluate_sgmae_conditions import (
+from scripts.v1.evaluate_conditions import (
     SAMPLES,
     _plot_correlations,
     _plot_gene_distribution,

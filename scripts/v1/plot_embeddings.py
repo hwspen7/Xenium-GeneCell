@@ -1,7 +1,7 @@
 """Balanced joint PCA/UMAP visualization of four frozen SG-MAE embeddings.
 
 From the project root:
-  python -m scripts.plot_cell_embeddings --input-dir runs/sgmae_cell_embeddings
+  python -m scripts.v1.plot_embeddings --input-dir runs/sgmae_cell_embeddings
 """
 
 from __future__ import annotations
@@ -154,9 +154,9 @@ def _draw_facets(frame, output):
 
 
 def main(argv=None):
-    root = Path(__file__).resolve().parents[1]
+    root = Path(__file__).resolve().parents[2]
     parser = argparse.ArgumentParser(description="SG-MAE V1.1 balanced pooled PCA/UMAP plots")
-    parser.add_argument("--input-dir", type=Path, default=root / "runs/sgmae_cell_embeddings")
+    parser.add_argument("--input-dir", type=Path, default=root / "runs/v1/representations/embeddings")
     parser.add_argument("--output-dir", type=Path, default=None)
     parser.add_argument("--per-sample", type=int, default=3000)
     parser.add_argument("--seed", type=int, default=42)

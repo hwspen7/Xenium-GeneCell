@@ -6,7 +6,7 @@ from tempfile import TemporaryDirectory
 
 import torch
 
-from scripts.test_trainer import FAKE_H5_SHA, fixture
+from tests.v1.test_trainer import FAKE_H5_SHA, fixture
 from src.models.gene_aware_mae import GeneAwareMAE
 from src.trainer import (
     SGMAETrainer,

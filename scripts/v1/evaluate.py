@@ -1,7 +1,7 @@
 """Evaluate frozen SG-MAE checkpoints on ShamL or external Xenium slices.
 
 Usage (from the project root):
-  python -m scripts.evaluate_sgmae_v1 --checkpoint baseline=runs/sgmae_v1_baseline/best.pt --checkpoint scheduler=runs/sgmae_v1_scheduler/best.pt
+  python -m scripts.v1.evaluate --checkpoint baseline=runs/sgmae_v1_baseline/best.pt --checkpoint scheduler=runs/sgmae_v1_scheduler/best.pt
 
 External ShamR, Hour12R and Day2L evaluations require --confirm-heldout.
 Never tune checkpoints or thresholds using these external slices.
@@ -53,7 +53,7 @@ def _write_csv(path: Path, records: list[dict]) -> None:
 
 
 def main(argv=None):
-    root = Path(__file__).resolve().parents[1]
+    root = Path(__file__).resolve().parents[2]
     parser = argparse.ArgumentParser(description="Frozen SG-MAE V1 reconstruction evaluation")
     parser.add_argument("--checkpoint", action="append", type=_parse_checkpoint, required=True)
     parser.add_argument("--data-root", type=Path, default=root / "data")
@@ -76,7 +76,7 @@ def main(argv=None):
         parser.error("External slices require --confirm-heldout and a frozen evaluation protocol.")
     if args.sample == "shaml" and args.confirm_heldout:
         parser.error("--confirm-heldout is only valid for external slices.")
-    output_dir = args.output_dir or root / "runs" / f"sgmae_v1_evaluation_{args.sample}"
+    output_dir = args.output_dir or root / "runs" / "v1" / "evaluation" / f"{args.sample}_new"
     if output_dir.exists():
         raise FileExistsError(
             f"Report directory already exists: {output_dir}. "

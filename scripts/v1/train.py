@@ -36,13 +36,13 @@ def sha256_file(path: Path) -> str:
 
 
 def main():
-    root = Path(__file__).resolve().parents[1]
+    root = Path(__file__).resolve().parents[2]
     parser = argparse.ArgumentParser(description="Frozen ShamL-only SG-MAE trainer")
-    parser.add_argument("--config", type=Path, default=root / "configs" / "v1_training.json")
+    parser.add_argument("--config", type=Path, default=root / "configs" / "v1" / "training.json")
     parser.add_argument("--data-root", type=Path, default=root / "data")
     parser.add_argument("--vocabulary", type=Path, default=root / "configs" / "gene_vocabulary.json")
     parser.add_argument("--split", type=Path, default=root / "configs" / "splits" / "shaml_spatial_v1.json.gz")
-    parser.add_argument("--run-dir", type=Path, default=root / "runs" / "sgmae_v1_shaml")
+    parser.add_argument("--run-dir", type=Path, default=root / "runs" / "v1" / "training" / "new_experiment")
     parser.add_argument("--device", choices=["auto", "cpu", "cuda"], default="auto")
     parser.add_argument("--epochs", type=int, default=None)
     parser.add_argument("--resume", action="store_true")

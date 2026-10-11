@@ -1,6 +1,6 @@
 """Regression checks for Pearson, Spearman and complete log-scale reconstruction.
 
-Run from project root: python -m scripts.test_correlations
+Run from project root: python -m tests.v1.test_correlations
 Synthetic data only. No ShamR, Hour12R or Day2L files are loaded.
 """
 

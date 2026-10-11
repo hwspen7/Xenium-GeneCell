@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from scripts.plot_cell_embeddings import SAMPLES, _read_data, select_balanced_sample
+from scripts.v1.plot_embeddings import SAMPLES, _read_data, select_balanced_sample
 from src.data.gene_vocabulary import GeneVocabulary
 from src.data.splitting import load_spatial_split
 from src.dataset import find_xenium_sample_file, load_sgmae_sample
@@ -179,9 +179,9 @@ def _plot_compare(meta, model_pca, base_pca, model_umap, base_umap, output):
 
 
 def main(argv=None):
-    root = Path(__file__).resolve().parents[1]
+    root = Path(__file__).resolve().parents[2]
     parser = argparse.ArgumentParser(description="Frozen cell representation QC and matched expression PCA baseline")
-    parser.add_argument("--input-dir", type=Path, default=root / "runs/sgmae_cell_embeddings_cuda_fixed")
+    parser.add_argument("--input-dir", type=Path, default=root / "runs/v1/representations/embeddings")
     parser.add_argument("--data-root", type=Path, default=root / "data")
     parser.add_argument("--vocabulary", type=Path, default=root / "configs/gene_vocabulary.json")
     parser.add_argument("--split", type=Path, default=root / "configs/splits/shaml_spatial_v1.json.gz")

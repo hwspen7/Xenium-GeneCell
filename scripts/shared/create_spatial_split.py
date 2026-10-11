@@ -19,7 +19,7 @@ from src.dataset import (
 
 
 def main():
-    root = Path(__file__).resolve().parents[1]
+    root = Path(__file__).resolve().parents[2]
     parser = argparse.ArgumentParser(
         description="Create or verify a frozen ShamL-only spatial split."
     )
